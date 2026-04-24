@@ -28,6 +28,8 @@ public class GraphViewer extends JPanel {
     private final WebCrawler crawler;
 
     private final Map<Integer, Point> positions = new HashMap<>();
+    private final Map<Integer, Integer> nodeRadius = new HashMap<>();
+    private final Map<Integer, Integer> referenceCount = new HashMap<>();
 
     private int hovered = -1;
 
@@ -181,7 +183,9 @@ public class GraphViewer extends JPanel {
 
         for (int v = 0; v < labels.size(); v++) {
             Point p = positions.get(v);
-            if (p != null && p.distance(worldPoint) < 14) {
+            int r = nodeRadius.getOrDefault(v, 6);
+
+            if (p != null && p.distance(worldPoint) < r + 4) {
                 return v;
             }
         }
@@ -202,6 +206,26 @@ public class GraphViewer extends JPanel {
     }
 
     private void layoutNodes() {
+        positions.clear();
+        nodeRadius.clear();
+        referenceCount.clear();
+
+        for (int v = 0; v < labels.size(); v++) {
+            for (int w : graph.adj(v)) {
+                if (w < 0 || w >= labels.size()) continue;
+                if (labels.get(w) == null) continue;
+
+                referenceCount.put(w, referenceCount.getOrDefault(w, 0) + 1);
+            }
+        }
+
+        for (int v = 0; v < labels.size(); v++) {
+            if (labels.get(v) == null) continue;
+
+            int refs = referenceCount.getOrDefault(v, 0);
+            nodeRadius.put(v, radiusForReferences(refs));
+        }
+
         Map<Integer, Integer> depthMap = new HashMap<>();
         Map<Integer, Integer> componentMap = new HashMap<>();
 
@@ -210,6 +234,13 @@ public class GraphViewer extends JPanel {
         for (int start = 0; start < labels.size(); start++) {
             if (labels.get(start) == null) continue;
             if (depthMap.containsKey(start)) continue;
+
+            boolean hasOutgoing = graph.adj(start).iterator().hasNext();
+            boolean hasIncoming = referenceCount.getOrDefault(start, 0) > 0;
+
+            if (!hasOutgoing && !hasIncoming) {
+                continue;
+            }
 
             Queue<Integer> queue = new LinkedList<>();
             queue.add(start);
@@ -236,37 +267,82 @@ public class GraphViewer extends JPanel {
             component++;
         }
 
-        Map<Integer, List<Integer>> levels = new HashMap<>();
+        Map<Integer, Map<Integer, List<Integer>>> components = new HashMap<>();
 
         for (int v : depthMap.keySet()) {
             int c = componentMap.get(v);
             int d = depthMap.get(v);
 
-            int combinedLevel = c * 20 + d;
-            levels.computeIfAbsent(combinedLevel, k -> new ArrayList<>()).add(v);
+            components
+                    .computeIfAbsent(c, k -> new HashMap<>())
+                    .computeIfAbsent(d, k -> new ArrayList<>())
+                    .add(v);
         }
 
-        List<Integer> sortedLevels = new ArrayList<>(levels.keySet());
-        Collections.sort(sortedLevels);
+        List<Integer> sortedComponents = new ArrayList<>(components.keySet());
+        Collections.sort(sortedComponents);
 
-        int levelHeight = 180;
+        int marginX = 90;
+        int currentY = 90;
 
-        for (int row = 0; row < sortedLevels.size(); row++) {
-            List<Integer> nodes = levels.get(sortedLevels.get(row));
-            Collections.sort(nodes);
+        int maxRowWidth = 1400;
+        int horizontalGap = 45;
+        int verticalGap = 45;
+        int depthGap = 120;
+        int componentGap = 180;
 
-            int count = nodes.size();
-            int width = Math.max(1200, count * 180);
+        for (int c : sortedComponents) {
+            Map<Integer, List<Integer>> depths = components.get(c);
 
-            for (int i = 0; i < count; i++) {
-                int v = nodes.get(i);
+            List<Integer> sortedDepths = new ArrayList<>(depths.keySet());
+            Collections.sort(sortedDepths);
 
-                int x = (width / (count + 1)) * (i + 1);
-                int y = 100 + row * levelHeight;
+            for (int d : sortedDepths) {
+                List<Integer> nodes = depths.get(d);
 
-                positions.put(v, new Point(x, y));
+                nodes.sort((a, b) -> {
+                    int refsA = referenceCount.getOrDefault(a, 0);
+                    int refsB = referenceCount.getOrDefault(b, 0);
+
+                    if (refsA != refsB) {
+                        return Integer.compare(refsB, refsA);
+                    }
+
+                    return Integer.compare(a, b);
+                });
+
+                int x = marginX;
+                int rowHeight = 0;
+
+                for (int v : nodes) {
+                    int r = nodeRadius.getOrDefault(v, 6);
+                    int diameter = r * 2;
+
+                    if (x + diameter > marginX + maxRowWidth) {
+                        x = marginX;
+                        currentY += rowHeight + verticalGap;
+                        rowHeight = 0;
+                    }
+
+                    positions.put(v, new Point(x + r, currentY + r));
+
+                    x += diameter + horizontalGap;
+                    rowHeight = Math.max(rowHeight, diameter);
+                }
+
+                currentY += Math.max(rowHeight, 20) + depthGap;
             }
+
+            currentY += componentGap;
         }
+    }
+
+    private int radiusForReferences(int refs) {
+        if (refs <= 0) return 6;
+
+        int radius = 6 + (int) Math.round(Math.sqrt(refs) * 4);
+
+        return Math.min(radius, 38);
     }
 
     @Override
@@ -296,17 +372,44 @@ public class GraphViewer extends JPanel {
 
             Point s = worldToScreen(p);
 
+            int r = nodeRadius.getOrDefault(v, 6);
+            int screenRadius = (int) Math.max(2, r * scale);
+
             if (v == hovered) {
                 g.setColor(Color.RED);
-                g.fillOval(s.x - 8, s.y - 8, 16, 16);
             } else {
-                g.setColor(Color.BLUE);
-                g.fillOval(s.x - 6, s.y - 6, 12, 12);
+                int refs = referenceCount.getOrDefault(v, 0);
+
+                if (refs >= 20) {
+                    g.setColor(new Color(20, 80, 200));
+                } else if (refs >= 5) {
+                    g.setColor(new Color(70, 120, 220));
+                } else {
+                    g.setColor(Color.BLUE);
+                }
             }
+
+            g.fillOval(
+                    s.x - screenRadius,
+                    s.y - screenRadius,
+                    screenRadius * 2,
+                    screenRadius * 2
+            );
+
+            g.setColor(Color.BLACK);
+            g.drawOval(
+                    s.x - screenRadius,
+                    s.y - screenRadius,
+                    screenRadius * 2,
+                    screenRadius * 2
+            );
         }
 
         if (hovered != -1) {
-            String text = labels.get(hovered);
+            String text = labels.get(hovered)
+                    + " | referenced by "
+                    + referenceCount.getOrDefault(hovered, 0)
+                    + " page(s)";
 
             FontMetrics fm = g.getFontMetrics();
             int w = fm.stringWidth(text);

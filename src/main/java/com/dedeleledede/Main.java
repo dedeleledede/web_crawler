@@ -3,8 +3,10 @@ package com.dedeleledede;
 public class Main {
     public static void main(String[] args) {
         if (args.length == 0) {
-            WebCrawler crawler = new WebCrawler("crawler-data");
-            crawler.crawlAndView("https://example.com", 2, 8);
+            System.out.println("Usage:");
+            System.out.println("  view crawler-data");
+            System.out.println("  crawl https://discord.com 2 8 crawler-data");
+            System.out.println("  crawl-view https://discord.com 2 8 crawler-data");
             return;
         }
 
