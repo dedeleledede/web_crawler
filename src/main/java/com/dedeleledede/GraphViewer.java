@@ -164,7 +164,7 @@ public class GraphViewer extends JPanel {
             runInBackground(() -> crawler.recrawlFromNode(node, depth));
         });
 
-        uncrawl.addActionListener(_ -> runInBackground(() -> crawler.uncrawlFromNode(node)));
+        uncrawl.addActionListener(event -> runInBackground(() -> crawler.uncrawlFromNode(node)));
 
         menu.add(crawl);
         menu.add(recrawl);
