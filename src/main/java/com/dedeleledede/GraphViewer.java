@@ -254,7 +254,7 @@ public class GraphViewer extends JPanel {
                 referenceCount.put(w, refs);
                 maxReferenceCount = Math.max(maxReferenceCount, refs);
 
-                incoming.computeIfAbsent(w, _ -> new ArrayList<>()).add(v);
+                incoming.computeIfAbsent(w, k -> new ArrayList<>()).add(v);
             }
 
             outDegree.put(v, outgoing);
@@ -522,7 +522,7 @@ public class GraphViewer extends JPanel {
             if (hub == -1) continue;
 
             hubOf.put(v, hub);
-            satellites.computeIfAbsent(hub, _ -> new ArrayList<>()).add(v);
+            satellites.computeIfAbsent(hub, k -> new ArrayList<>()).add(v);
         }
 
         for (int hub : hubs) {
@@ -567,7 +567,7 @@ public class GraphViewer extends JPanel {
 
             if (!positions.containsKey(parent)) continue;
 
-            leavesByParent.computeIfAbsent(parent, _ -> new ArrayList<>()).add(v);
+            leavesByParent.computeIfAbsent(parent, k -> new ArrayList<>()).add(v);
         }
 
         double goldenAngle = Math.PI * (3.0 - Math.sqrt(5.0));
