@@ -203,28 +203,47 @@ public class GraphViewer extends JPanel {
 
     private void layoutNodes() {
         Map<Integer, Integer> depthMap = new HashMap<>();
+        Map<Integer, Integer> componentMap = new HashMap<>();
 
-        Queue<Integer> queue = new LinkedList<>();
-        queue.add(0);
-        depthMap.put(0, 0);
+        int component = 0;
 
-        while (!queue.isEmpty()) {
-            int v = queue.poll();
-            int d = depthMap.get(v);
+        for (int start = 0; start < labels.size(); start++) {
+            if (labels.get(start) == null) continue;
+            if (depthMap.containsKey(start)) continue;
 
-            for (int w : graph.adj(v)) {
-                if (!depthMap.containsKey(w)) {
-                    depthMap.put(w, d + 1);
-                    queue.add(w);
+            Queue<Integer> queue = new LinkedList<>();
+            queue.add(start);
+
+            depthMap.put(start, 0);
+            componentMap.put(start, component);
+
+            while (!queue.isEmpty()) {
+                int v = queue.poll();
+                int d = depthMap.get(v);
+
+                for (int w : graph.adj(v)) {
+                    if (w < 0 || w >= labels.size()) continue;
+                    if (labels.get(w) == null) continue;
+
+                    if (!depthMap.containsKey(w)) {
+                        depthMap.put(w, d + 1);
+                        componentMap.put(w, component);
+                        queue.add(w);
+                    }
                 }
             }
+
+            component++;
         }
 
         Map<Integer, List<Integer>> levels = new HashMap<>();
 
         for (int v : depthMap.keySet()) {
+            int c = componentMap.get(v);
             int d = depthMap.get(v);
-            levels.computeIfAbsent(d, k -> new ArrayList<>()).add(v);
+
+            int combinedLevel = c * 20 + d;
+            levels.computeIfAbsent(combinedLevel, k -> new ArrayList<>()).add(v);
         }
 
         List<Integer> sortedLevels = new ArrayList<>(levels.keySet());
@@ -232,8 +251,8 @@ public class GraphViewer extends JPanel {
 
         int levelHeight = 180;
 
-        for (int level : sortedLevels) {
-            List<Integer> nodes = levels.get(level);
+        for (int row = 0; row < sortedLevels.size(); row++) {
+            List<Integer> nodes = levels.get(sortedLevels.get(row));
             Collections.sort(nodes);
 
             int count = nodes.size();
@@ -243,7 +262,7 @@ public class GraphViewer extends JPanel {
                 int v = nodes.get(i);
 
                 int x = (width / (count + 1)) * (i + 1);
-                int y = 100 + level * levelHeight;
+                int y = 100 + row * levelHeight;
 
                 positions.put(v, new Point(x, y));
             }
