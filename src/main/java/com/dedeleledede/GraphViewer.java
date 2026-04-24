@@ -154,12 +154,12 @@ public class GraphViewer extends JPanel {
         JMenuItem recrawl = new JMenuItem("Recrawl this node");
         JMenuItem uncrawl = new JMenuItem("Uncrawl branch under this node");
 
-        crawl.addActionListener(_ -> {
+        crawl.addActionListener(event -> {
             int depth = askDepth("Crawl depth");
             runInBackground(() -> crawler.crawlFromNode(node, depth));
         });
 
-        recrawl.addActionListener(_ -> {
+        recrawl.addActionListener(event -> {
             int depth = askDepth("Recrawl depth");
             runInBackground(() -> crawler.recrawlFromNode(node, depth));
         });
